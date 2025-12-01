@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>KARTA | Hub Immobilier Pro</title>
     
     <!-- React & ReactDOM -->
@@ -27,11 +27,17 @@
 
     <style>
         :root { --brand-dark: #0F172A; --brand-primary: #4F46E5; --brand-accent: #10B981; --font-main: 'Outfit', sans-serif; }
-        body { font-family: var(--font-main); background-color: #F8FAFC; color: var(--brand-dark); margin: 0; overflow: hidden; }
         
-        #map { height: 100%; width: 100%; background: #e2e8f0; z-index: 0; }
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: var(--font-main); background-color: #F8FAFC; color: var(--brand-dark); }
         
-        .sidebar-container { z-index: 5000; position: relative; }
+        #root { height: 100dvh; width: 100vw; display: flex; flex-direction: column; }
+        
+        #map { height: 100%; width: 100%; background: #e2e8f0; z-index: 0; position: absolute; top: 0; left: 0; }
+        
+        /* Sidebar surélevée pour interagir avec les boutons */
+        .sidebar-container { z-index: 1000; position: relative; pointer-events: none; }
+        .sidebar-content { pointer-events: auto; }
+        
         .slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
         @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
         
@@ -52,9 +58,12 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
-        const DEFAULT_CENTER = [48.8566, 2.3522];
+        const DEFAULT_CENTER = [48.8566, 2.3522]; // Paris
 
         const formatEuro = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+
+        // --- ICONS SVG (Fix pour les toggles) ---
+        const CheckIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
 
         // --- LOGIQUE LIENS ---
         const getPortalLinks = (city, type, surface, rooms) => {
@@ -85,19 +94,20 @@
             ];
         };
 
-        // --- DATA FETCHING ---
+        // --- DATA ENGINE ---
         const generateMock = (lat, lng) => Array.from({length:40}, (_,i) => ({
             id: `mock-${i}`, lat: lat + (Math.random()-.5)*0.015, lng: lng + (Math.random()-.5)*0.02,
             type: Math.random()>.7 ? 'Maison' : 'Appartement',
             surface: Math.floor(20+Math.random()*100),
             price: Math.floor(100000+Math.random()*500000),
             date: '2024', isMock: true
-        })).map(p => ({...p, pricePerSqm: Math.floor(p.price/p.surface), address:'Quartier détecté'}));
+        })).map(p => ({...p, pricePerSqm: Math.floor(p.price/p.surface), address:'Quartier détecté (Simulé)'}));
 
         const fetchData = async (lat, lng) => {
             try {
-                const c = new AbortController(); setTimeout(()=>c.abort(), 2500);
-                const r = await fetch(`https://api.cquest.org/dvf?lat=${lat}&lon=${lng}&dist=1000`, {signal:c.signal});
+                const c = new AbortController(); setTimeout(()=>c.abort(), 8000); // 8s timeout
+                const r = await fetch(`https://api.cquest.org/dvf?lat=${lat}&lon=${lng}&dist=2000`, {signal:c.signal});
+                if(!r.ok) throw new Error("API Error");
                 const j = await r.json();
                 if(!j.features?.length) throw new Error("Vide");
                 return { ok:true, data: j.features.map(f=>({
@@ -106,7 +116,7 @@
                     price:f.properties.valeur_fonciere, pricePerSqm:Math.round(f.properties.valeur_fonciere/f.properties.surface_reelle_bati),
                     date: new Date(f.properties.date_mutation).toLocaleDateString('fr-FR', {month:'short', year:'2-digit'}),
                     address: `${f.properties.numero_voie||''} ${f.properties.voie||''}`.toLowerCase(), isMock:false
-                })).filter(p=>p.surface>9 && p.price>50000).slice(0,80)};
+                })).filter(p=>p.surface>9 && p.price>50000).slice(0,100)};
             } catch(e) { return { ok:false, data: generateMock(lat, lng) }; }
         };
 
@@ -119,7 +129,7 @@
             } catch(e) { return []; }
         };
 
-        // --- UI COMPONENTS ---
+        // --- COMPONENTS ---
         const Logo = () => (
             <div className="flex items-center gap-3 select-none cursor-pointer mb-6">
                 <div className="karta-logo-shape shadow-lg shadow-indigo-500/30"></div>
@@ -136,7 +146,7 @@
                         <i data-lucide="search" className="w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                     </div>
                     <input className="w-full py-4 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl text-base font-medium shadow-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                        placeholder="Entrez une adresse..." value={q} onChange={e=>SQ(e.target.value)} />
+                        placeholder="Adresse, ville..." value={q} onChange={e=>SQ(e.target.value)} />
                     {r && r.length > 0 && (
                         <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden slide-up z-[1000]">
                             {r.map(x => (
@@ -152,11 +162,6 @@
             );
         };
 
-        // --- ICONS SVG STATIQUES (Pour éviter les bugs de re-render Lucide) ---
-        const CheckIcon = () => (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        );
-
         const ToggleButton = ({ label, active, onClick }) => (
             <button onClick={onClick} className={`flex-1 p-4 rounded-2xl border-2 transition-all duration-200 flex items-center justify-center gap-3 ${active ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'}`}>
                 <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${active ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}`}>
@@ -166,21 +171,21 @@
             </button>
         );
 
-        // --- APP PRINCIPALE ---
+        // --- APP ---
         const App = () => {
             const [view, setView] = useState('map');
             const [data, setData] = useState([]);
             const [live, setLive] = useState(true);
+            const [loading, setLoading] = useState(false);
             const [sel, setSel] = useState(null);
             const [center, setCenter] = useState(DEFAULT_CENTER);
             
-            // États Estimation
+            // State
             const [prop, setProp] = useState({ 
                 s: 60, t: 'Appartement', e: 'Bon', pieces: 3, dpe: 'D', 
-                ext: false, park: false, // Booléens pour les cases à cocher
+                ext: false, park: false, 
                 addr: '', lat: null, lng: null, city: '' 
             });
-            
             const [est, setEst] = useState(null);
             const [portalLinks, setPortalLinks] = useState([]);
 
@@ -190,18 +195,29 @@
 
             useEffect(() => {
                 if(map.current) return;
-                const m = L.map('map', { zoomControl:false, attributionControl:false }).setView(center, 14);
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {maxZoom: 20}).addTo(m);
+                const m = L.map('map', { zoomControl:false, attributionControl:false }).setView(center, 13);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO'}).addTo(m);
                 lay.current = L.layerGroup().addTo(m);
                 map.current = m;
+                
+                // Hack pour forcer le redimensionnement correct sur mobile
+                setTimeout(() => { m.invalidateSize(); }, 500); 
+
                 refresh(center[0], center[1]);
-                m.on('moveend', () => { const c = m.getCenter(); setTimeout(()=>refresh(c.lat,c.lng),600); });
                 return ()=>m.remove();
             }, []);
 
             const refresh = async (lat, lng) => {
+                setLoading(true);
                 const res = await fetchData(lat, lng);
                 setData(res.data); setLive(res.ok);
+                setLoading(false);
+            };
+
+            const searchHere = () => {
+                if(!map.current) return;
+                const c = map.current.getCenter();
+                refresh(c.lat, c.lng);
             };
 
             const goTo = (f) => {
@@ -216,7 +232,7 @@
             };
 
             const calc = () => {
-                if(!prop.lat) return alert("Veuillez sélectionner une adresse d'abord");
+                if(!prop.lat) return alert("Veuillez d'abord chercher une adresse sur la carte.");
                 
                 const avg = data.reduce((a,b)=>a+b.pricePerSqm,0)/(data.length||1);
                 let multiplier = 1.0;
@@ -238,7 +254,7 @@
                 if(!lay.current) return;
                 lay.current.clearLayers();
                 data.forEach(d => {
-                    const isHigh = d.pricePerSqm > 8500;
+                    const isHigh = d.pricePerSqm > 8000;
                     const html = `<div class="price-tag ${isHigh?'premium':''} ${sel?.id===d.id?'accent':''}">
                         ${Math.round(d.price/1000)}k
                     </div>`;
@@ -248,6 +264,7 @@
                             <div style="font-size:11px; color:#94a3b8; text-transform:uppercase; font-weight:700;">${d.type}</div>
                             <div style="font-size:20px; font-weight:800; color:#0f172a;">${formatEuro(d.price)}</div>
                             <div style="font-size:12px; color:#64748b;">${d.surface}m² • ${formatEuro(d.pricePerSqm)}/m²</div>
+                            <div style="font-size:10px; margin-top:5px; color:#94a3b8;">${d.date}</div>
                         </div>
                     `);
                     m.on('click', () => { setSel(d); map.current.flyTo([d.lat, d.lng], 17); if(view==='est') setView('map'); });
@@ -258,164 +275,174 @@
             useEffect(()=>lucide.createIcons(), [view, sel, est, portalLinks, prop]);
 
             return (
-                <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
+                <div className="flex flex-col md:flex-row h-full w-full">
                     
-                    <div className="sidebar-container absolute md:relative bottom-0 left-0 w-full md:w-[480px] h-[75vh] md:h-full bg-white/95 md:bg-white backdrop-blur-xl shadow-2xl flex flex-col border-r border-slate-200 shrink-0">
-                        
-                        <div className="p-6 pb-2 shrink-0">
-                            <div className="flex justify-between items-start">
-                                <Logo />
-                                <div className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-2 border ${live ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
-                                    <span className={`w-2 h-2 rounded-full ${live?'bg-emerald-500':'bg-amber-500'}`}></span>
-                                    {live ? 'LIVE' : 'DEMO'}
+                    {/* SIDEBAR */}
+                    <div className="sidebar-container absolute md:relative bottom-0 left-0 w-full md:w-[480px] h-[65vh] md:h-full flex flex-col shrink-0">
+                        <div className="sidebar-content bg-white/95 md:bg-white backdrop-blur-xl shadow-2xl h-full flex flex-col rounded-t-3xl md:rounded-none border-r border-slate-200">
+                            
+                            <div className="p-6 pb-2 shrink-0">
+                                <div className="flex justify-between items-start">
+                                    <Logo />
+                                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-2 border ${live ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                        <span className={`w-2 h-2 rounded-full ${live?'bg-emerald-500':'bg-amber-500'}`}></span>
+                                        {live ? 'LIVE' : 'SIMULATION'}
+                                    </div>
+                                </div>
+                                <div className="bg-slate-100 p-1 rounded-xl flex mb-4">
+                                    {[{id:'map', l:'Explorer'}, {id:'est', l:'Estimer'}].map(t => (
+                                        <button key={t.id} onClick={()=>setView(t.id)}
+                                            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${view===t.id ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>
+                                            {t.l}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
-                            <div className="bg-slate-100 p-1 rounded-xl flex mb-4">
-                                {[{id:'map', l:'Explorer'}, {id:'est', l:'Estimer'}].map(t => (
-                                    <button key={t.id} onClick={()=>setView(t.id)}
-                                        className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${view===t.id ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>
-                                        {t.l}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
 
-                        <div className="flex-1 overflow-y-auto px-6 pb-24 scroll-smooth">
-                            {view === 'map' && (
-                                <div className="slide-up">
-                                    <h2 className="text-xl font-extrabold text-slate-900 mb-4">Transactions<span className="text-indigo-500">.</span></h2>
-                                    <Search onLoc={goTo} />
-                                    {sel ? (
-                                        <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-2xl relative overflow-hidden mb-6">
-                                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-[60px] opacity-50"></div>
-                                            <button onClick={()=>setSel(null)} className="text-xs font-bold text-slate-400 hover:text-white mb-4 flex items-center gap-1"><i data-lucide="arrow-left" width="14"></i> RETOUR</button>
-                                            <div className="text-sm font-bold text-indigo-400 uppercase mb-1">{sel.type}</div>
-                                            <div className="text-3xl font-extrabold mb-6">{formatEuro(sel.price)}</div>
-                                            <div className="flex gap-4">
-                                                <div className="bg-white/10 px-3 py-2 rounded-lg text-sm font-bold">{sel.surface} m²</div>
-                                                <div className="bg-white/10 px-3 py-2 rounded-lg text-sm font-bold">{formatEuro(sel.pricePerSqm)}/m²</div>
-                                            </div>
-                                            <div className="mt-4 text-xs text-slate-500 capitalize">{sel.address}</div>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {data.map(d => (
-                                                <div key={d.id} onClick={()=>{setSel(d); map.current.flyTo([d.lat,d.lng],18)}}
-                                                    className="group p-4 bg-white rounded-2xl border border-slate-100 hover:border-indigo-500 hover:shadow-lg transition-all cursor-pointer flex justify-between items-center">
-                                                    <div>
-                                                        <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{d.type} {d.surface}m²</div>
-                                                        <div className="text-xs font-semibold text-slate-400 mt-1">{d.date}</div>
-                                                    </div>
-                                                    <div className="font-extrabold text-slate-900">{formatEuro(d.price)}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {view === 'est' && (
-                                <div className="slide-up">
-                                    <h2 className="text-xl font-extrabold text-slate-900 mb-4">Analyse & Concurrence<span className="text-emerald-500">.</span></h2>
-                                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm mb-6">
+                            <div className="flex-1 overflow-y-auto px-6 pb-24 scroll-smooth">
+                                {view === 'map' && (
+                                    <div className="slide-up">
+                                        <h2 className="text-xl font-extrabold text-slate-900 mb-4">Transactions<span className="text-indigo-500">.</span></h2>
+                                        <Search onLoc={goTo} />
                                         
-                                        {/* 1. Adresse */}
-                                        <div className="mb-5">
-                                            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Adresse du bien</label>
-                                            <Search onLoc={goTo} />
-                                            {prop.addr && <div className="text-xs font-bold text-emerald-600 flex gap-2 mt-2"><i data-lucide="check" width="14"></i> {prop.city || 'Zone identifiée'}</div>}
+                                        <div className="flex justify-between items-center mb-4 px-1">
+                                            <div className="text-xs font-bold text-slate-400 uppercase">{data.length} biens trouvés</div>
+                                            {loading && <div className="text-xs text-indigo-600 flex items-center gap-1"><div className="w-2 h-2 bg-indigo-600 rounded-full animate-ping"></div> Chargement...</div>}
                                         </div>
 
-                                        {/* 2. Type & Surface */}
-                                        <div className="grid grid-cols-2 gap-3 mb-4">
-                                            <div>
-                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Type</label>
-                                                <div className="flex bg-slate-50 p-1 rounded-xl">
-                                                    {['Appartement', 'Maison'].map(t => (
-                                                        <button key={t} onClick={()=>setProp({...prop, t})} 
-                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${prop.t===t?'bg-white shadow text-indigo-600':'text-slate-400 hover:bg-slate-50'}`}>{t === 'Appartement' ? 'Appt' : 'Maison'}</button>
-                                                    ))}
+                                        {sel ? (
+                                            <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-2xl relative overflow-hidden mb-6">
+                                                <button onClick={()=>setSel(null)} className="text-xs font-bold text-slate-400 hover:text-white mb-4 flex items-center gap-1"><i data-lucide="arrow-left" width="14"></i> RETOUR</button>
+                                                <div className="text-sm font-bold text-indigo-400 uppercase mb-1">{sel.type}</div>
+                                                <div className="text-3xl font-extrabold mb-6">{formatEuro(sel.price)}</div>
+                                                <div className="flex gap-4">
+                                                    <div className="bg-white/10 px-3 py-2 rounded-lg text-sm font-bold">{sel.surface} m²</div>
+                                                    <div className="bg-white/10 px-3 py-2 rounded-lg text-sm font-bold">{formatEuro(sel.pricePerSqm)}/m²</div>
+                                                </div>
+                                                <div className="mt-4 text-xs text-slate-500 capitalize">{sel.address}</div>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {data.map(d => (
+                                                    <div key={d.id} onClick={()=>{setSel(d); map.current.flyTo([d.lat,d.lng],18)}}
+                                                        className="group p-4 bg-white rounded-2xl border border-slate-100 hover:border-indigo-500 hover:shadow-lg transition-all cursor-pointer flex justify-between items-center">
+                                                        <div>
+                                                            <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{d.type} {d.surface}m²</div>
+                                                            <div className="text-xs font-semibold text-slate-400 mt-1">{d.date}</div>
+                                                        </div>
+                                                        <div className="font-extrabold text-slate-900">{formatEuro(d.price)}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {view === 'est' && (
+                                    <div className="slide-up">
+                                        <h2 className="text-xl font-extrabold text-slate-900 mb-4">Estimation Pro<span className="text-emerald-500">.</span></h2>
+                                        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm mb-6">
+                                            
+                                            <div className="mb-5">
+                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Adresse du bien</label>
+                                                <Search onLoc={goTo} />
+                                                {prop.addr && <div className="text-xs font-bold text-emerald-600 flex gap-2 mt-2"><i data-lucide="check" width="14"></i> {prop.city || 'Zone identifiée'}</div>}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                <div>
+                                                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Type</label>
+                                                    <div className="flex bg-slate-50 p-1 rounded-xl">
+                                                        {['Appartement', 'Maison'].map(t => (
+                                                            <button key={t} onClick={()=>setProp({...prop, t})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${prop.t===t?'bg-white shadow text-indigo-600':'text-slate-400 hover:bg-slate-50'}`}>{t === 'Appartement' ? 'Appt' : 'Maison'}</button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Surface (m²)</label>
+                                                    <input type="number" value={prop.s} onChange={e=>setProp({...prop,s:Number(e.target.value)})} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-transparent" />
                                                 </div>
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Surface (m²)</label>
-                                                <input type="number" value={prop.s} onChange={e=>setProp({...prop,s:Number(e.target.value)})} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-transparent" />
-                                            </div>
-                                        </div>
 
-                                        {/* 3. Pièces & DPE */}
-                                        <div className="grid grid-cols-2 gap-3 mb-4">
-                                            <div>
-                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Nb Pièces</label>
-                                                <input type="number" value={prop.pieces} onChange={e=>setProp({...prop,pieces:Number(e.target.value)})} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-transparent" />
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                <div>
+                                                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Pièces</label>
+                                                    <input type="number" value={prop.pieces} onChange={e=>setProp({...prop,pieces:Number(e.target.value)})} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-transparent" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">DPE</label>
+                                                    <select value={prop.dpe} onChange={e=>setProp({...prop,dpe:e.target.value})} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-transparent">
+                                                        {['A','B','C','D','E','F','G'].map(l => <option key={l} value={l}>{l}</option>)}
+                                                    </select>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">DPE</label>
-                                                <select value={prop.dpe} onChange={e=>setProp({...prop,dpe:e.target.value})} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-transparent">
-                                                    {['A','B','C','D','E','F','G'].map(l => <option key={l} value={l}>{l}</option>)}
+
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                <ToggleButton label="Extérieur" active={prop.ext} onClick={() => setProp({...prop, ext: !prop.ext})} />
+                                                <ToggleButton label="Parking" active={prop.park} onClick={() => setProp({...prop, park: !prop.park})} />
+                                            </div>
+
+                                            <div className="mb-6">
+                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">État général</label>
+                                                <select value={prop.e} onChange={e=>setProp({...prop,e:e.target.value})} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-transparent">
+                                                    <option value="Rénover">À rénover</option>
+                                                    <option value="Bon">Bon état / Standard</option>
+                                                    <option value="Neuf">Excellent / Refait à neuf</option>
                                                 </select>
                                             </div>
+
+                                            <button onClick={calc} className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2">
+                                                <i data-lucide="calculator" width="16"></i> Calculer
+                                            </button>
                                         </div>
 
-                                        {/* 4. Options (Boutons Toggle Corrigés avec SVG Inline) */}
-                                        <div className="grid grid-cols-2 gap-3 mb-4">
-                                            <ToggleButton label="Extérieur" active={prop.ext} onClick={() => setProp({...prop, ext: !prop.ext})} />
-                                            <ToggleButton label="Parking" active={prop.park} onClick={() => setProp({...prop, park: !prop.park})} />
-                                        </div>
-
-                                        <div className="mb-6">
-                                            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">État général</label>
-                                            <select value={prop.e} onChange={e=>setProp({...prop,e:e.target.value})} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-transparent">
-                                                <option value="Rénover">À rénover (Travaux nécessaires)</option>
-                                                <option value="Bon">Bon état / Standard</option>
-                                                <option value="Neuf">Excellent / Refait à neuf</option>
-                                            </select>
-                                        </div>
-
-                                        <button onClick={calc} className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2">
-                                            <i data-lucide="calculator" width="16"></i> Calculer l'estimation
-                                        </button>
+                                        {est && (
+                                            <>
+                                                <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 rounded-3xl text-white shadow-2xl slide-up mb-8">
+                                                    <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider mb-2">Valeur estimée</div>
+                                                    <div className="text-4xl font-extrabold mb-4">{formatEuro(est.v)}</div>
+                                                    <div className="flex justify-between text-sm font-medium border-t border-white/10 pt-4">
+                                                        <div className="text-indigo-200">Min: <span className="text-white">{formatEuro(est.min)}</span></div>
+                                                        <div className="text-indigo-200">Max: <span className="text-white">{formatEuro(est.max)}</span></div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="relative z-50 pb-10">
+                                                    <h3 className="text-sm font-extrabold text-slate-900 mb-4 flex items-center gap-2">
+                                                        <i data-lucide="external-link" className="text-emerald-500" width="16"></i> Comparer sur le marché
+                                                    </h3>
+                                                    <div className="space-y-3">
+                                                        {portalLinks.map(link => (
+                                                            <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" style={{ pointerEvents: 'auto' }} 
+                                                               className={`block p-4 rounded-2xl border transition-all hover:scale-[1.02] flex items-center gap-4 ${link.color} border-opacity-50 hover:shadow-lg no-underline cursor-pointer`}>
+                                                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm shrink-0 overflow-hidden p-1">
+                                                                    <img src={link.icon} className="w-full h-full object-contain" alt={link.name}/>
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <div className="font-bold text-slate-900">Voir sur {link.name}</div>
+                                                                    <div className="text-xs opacity-80 font-medium">Recherche filtrée</div>
+                                                                </div>
+                                                                <i data-lucide="chevron-right" width="16"></i>
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
-
-                                    {est && (
-                                        <>
-                                            <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 rounded-3xl text-white shadow-2xl slide-up mb-8">
-                                                <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider mb-2">Valeur estimée</div>
-                                                <div className="text-4xl font-extrabold mb-4">{formatEuro(est.v)}</div>
-                                                <div className="flex justify-between text-sm font-medium border-t border-white/10 pt-4">
-                                                    <div className="text-indigo-200">Min: <span className="text-white">{formatEuro(est.min)}</span></div>
-                                                    <div className="text-indigo-200">Max: <span className="text-white">{formatEuro(est.max)}</span></div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="relative z-50 pb-10">
-                                                <h3 className="text-sm font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                                                    <i data-lucide="external-link" className="text-emerald-500" width="16"></i> Comparer sur le marché
-                                                </h3>
-                                                <div className="space-y-3">
-                                                    {portalLinks.map(link => (
-                                                        <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
-                                                           style={{ pointerEvents: 'auto' }} 
-                                                           className={`block p-4 rounded-2xl border transition-all hover:scale-[1.02] flex items-center gap-4 ${link.color} border-opacity-50 hover:shadow-lg no-underline cursor-pointer`}>
-                                                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm shrink-0 overflow-hidden p-1">
-                                                                <img src={link.icon} className="w-full h-full object-contain" alt={link.name}/>
-                                                            </div>
-                                                            <div className="flex-1">
-                                                                <div className="font-bold text-slate-900">Voir sur {link.name}</div>
-                                                                <div className="text-xs opacity-80 font-medium">Recherche pré-filtrée : {prop.t} {prop.pieces}p</div>
-                                                            </div>
-                                                            <i data-lucide="chevron-right" width="16"></i>
-                                                        </a>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
-                    <div id="map" className="flex-1"></div>
+                    
+                    {/* MAP */}
+                    <div id="map"></div>
+                    
+                    <div className="absolute top-4 right-4 z-[999]">
+                        <button onClick={searchHere} className="bg-white text-slate-800 p-3 rounded-xl shadow-lg font-bold text-xs flex items-center gap-2 hover:bg-slate-50 border border-slate-100">
+                            <i data-lucide="refresh-cw" width="14"></i> Chercher ici
+                        </button>
+                    </div>
                 </div>
             );
         };
