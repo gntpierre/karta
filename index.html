@@ -1,434 +1,427 @@
-{\rtf1\ansi\ansicpg1252\cocoartf2761
-\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
-{\colortbl;\red255\green255\blue255;}
-{\*\expandedcolortbl;;}
-\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KARTA | Hub Immobilier Pro</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-\f0\fs24 \cf0 <!DOCTYPE html>\
-<html lang="fr">\
-<head>\
-    <meta charset="UTF-8">\
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">\
-    <title>KARTA | Hub Immobilier Pro</title>\
-    \
-    <!-- React & ReactDOM -->\
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>\
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>\
-    \
-    <!-- Babel -->\
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>\
-    \
-    <!-- Tailwind CSS -->\
-    <script src="https://cdn.tailwindcss.com"></script>\
-    \
-    <!-- Fonts -->\
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">\
-    \
-    <!-- Leaflet -->\
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />\
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>\
-    \
-    <!-- Lucide Icons -->\
-    <script src="https://unpkg.com/lucide@latest"></script>\
-\
-    <style>\
-        :root \{ --brand-dark: #0F172A; --brand-primary: #4F46E5; --brand-accent: #10B981; --font-main: 'Outfit', sans-serif; \}\
-        body \{ font-family: var(--font-main); background-color: #F8FAFC; color: var(--brand-dark); margin: 0; overflow: hidden; \}\
-        \
-        #map \{ height: 100%; width: 100%; background: #e2e8f0; z-index: 0; \}\
-        \
-        .sidebar-container \{ z-index: 5000; position: relative; \}\
-        .slide-up \{ animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); \}\
-        @keyframes slideUp \{ to \{ opacity: 1; transform: translateY(0); \} \}\
-        \
-        .leaflet-popup-content-wrapper \{ border-radius: 16px; border: none; padding: 0; \}\
-        .leaflet-popup-content \{ margin: 0; width: 260px !important; \}\
-        \
-        .karta-logo-shape \{ width: 28px; height: 28px; background: var(--brand-primary); border-radius: 6px; position: relative; overflow: hidden; \}\
-        .karta-logo-shape::after \{ content: ''; position: absolute; top: 0; right: 0; width: 14px; height: 14px; background: var(--brand-accent); border-bottom-left-radius: 10px; \}\
-        \
-        .price-tag \{ background: white; padding: 6px 10px; border-radius: 12px; font-weight: 700; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: transform 0.2s; display: flex; align-items: center; gap: 4px; white-space: nowrap; border: 1px solid rgba(0,0,0,0.05); \}\
-        .price-tag:hover \{ transform: scale(1.15); z-index: 500 !important; \}\
-        .price-tag.premium \{ background: var(--brand-dark); color: white; border: none; \}\
-        .price-tag.accent \{ background: var(--brand-primary); color: white; border: none; \}\
-    </style>\
-</head>\
-<body>\
-    <div id="root"></div>\
-\
-    <script type="text/babel">\
-        const \{ useState, useEffect, useRef \} = React;\
-        const DEFAULT_CENTER = [48.8566, 2.3522];\
-\
-        const formatEuro = (v) => new Intl.NumberFormat('fr-FR', \{ style: 'currency', currency: 'EUR', maximumFractionDigits: 0 \}).format(v);\
-\
-        // --- LOGIQUE LIENS ---\
-        const getPortalLinks = (city, type, surface, rooms) => \{\
-            if (!city) return [];\
-            const cleanCity = city.split(' ')[0].toLowerCase().replace(/ /g, '-');\
-            const surfaceMin = Math.floor(surface * 0.9);\
-            const surfaceMax = Math.ceil(surface * 1.1);\
-            \
-            return [\
-                \{\
-                    id: 'lbc', name: 'Leboncoin',\
-                    icon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Leboncoin_Logo_2016.svg/1200px-Leboncoin_Logo_2016.svg.png',\
-                    color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',\
-                    url: `https://www.leboncoin.fr/recherche?category=9&text=$\{cleanCity\}&real_estate_type=$\{type === 'Maison' ? '1' : '2'\}&square=$\{surfaceMin\}-$\{surfaceMax\}&rooms=$\{rooms\}-$\{rooms+1\}`\
-                \},\
-                \{\
-                    id: 'seloger', name: 'SeLoger',\
-                    icon: 'https://play-lh.googleusercontent.com/85W-p7L5X-Z9z8qD2c4yF9vR1v4z4zF9z8qD2c4yF9vR1v4z4zF9z8qD2c4yF9=w240-h480-rw',\
-                    color: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100',\
-                    url: `https://www.seloger.com/list.htm?projects=2&types=$\{type === 'Maison' ? '2' : '1'\}&surface=$\{surfaceMin\}/$\{surfaceMax\}&rooms=$\{rooms\}&places=[\{city:$\{cleanCity\}\}]`\
-                \},\
-                \{\
-                    id: 'bienici', name: 'BienIci',\
-                    icon: 'https://upload.wikimedia.org/wikipedia/commons/4/42/Logo_Bien%27ici.png',\
-                    color: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',\
-                    url: `https://www.bienici.com/recherche/achat/$\{cleanCity\}?surface-min=$\{surfaceMin\}&surface-max=$\{surfaceMax\}&rooms-min=$\{rooms\}&type=$\{type === 'Maison' ? 'maison' : 'appartement'\}`\
-                \}\
-            ];\
-        \};\
-\
-        // --- DATA FETCHING ---\
-        const generateMock = (lat, lng) => Array.from(\{length:40\}, (_,i) => (\{\
-            id: `mock-$\{i\}`, lat: lat + (Math.random()-.5)*0.015, lng: lng + (Math.random()-.5)*0.02,\
-            type: Math.random()>.7 ? 'Maison' : 'Appartement',\
-            surface: Math.floor(20+Math.random()*100),\
-            price: Math.floor(100000+Math.random()*500000),\
-            date: '2024', isMock: true\
-        \})).map(p => (\{...p, pricePerSqm: Math.floor(p.price/p.surface), address:'Quartier d\'e9tect\'e9'\}));\
-\
-        const fetchData = async (lat, lng) => \{\
-            try \{\
-                const c = new AbortController(); setTimeout(()=>c.abort(), 2500);\
-                const r = await fetch(`https://api.cquest.org/dvf?lat=$\{lat\}&lon=$\{lng\}&dist=1000`, \{signal:c.signal\});\
-                const j = await r.json();\
-                if(!j.features?.length) throw new Error("Vide");\
-                return \{ ok:true, data: j.features.map(f=>(\{\
-                    id:f.properties.id_mutation, lat:f.properties.lat, lng:f.properties.lon,\
-                    type:f.properties.type_local, surface:f.properties.surface_reelle_bati,\
-                    price:f.properties.valeur_fonciere, pricePerSqm:Math.round(f.properties.valeur_fonciere/f.properties.surface_reelle_bati),\
-                    date: new Date(f.properties.date_mutation).toLocaleDateString('fr-FR', \{month:'short', year:'2-digit'\}),\
-                    address: `$\{f.properties.numero_voie||''\} $\{f.properties.voie||''\}`.toLowerCase(), isMock:false\
-                \})).filter(p=>p.surface>9 && p.price>50000).slice(0,80)\};\
-            \} catch(e) \{ return \{ ok:false, data: generateMock(lat, lng) \}; \}\
-        \};\
-\
-        const fetchAddr = async (q) => \{\
-            if(q.length < 3) return [];\
-            try \{\
-                const res = await fetch(`https://api-adresse.data.gouv.fr/search/?q=$\{q\}&limit=4`);\
-                const json = await res.json();\
-                return json.features || [];\
-            \} catch(e) \{ return []; \}\
-        \};\
-\
-        // --- UI COMPONENTS ---\
-        const Logo = () => (\
-            <div className="flex items-center gap-3 select-none cursor-pointer mb-6">\
-                <div className="karta-logo-shape shadow-lg shadow-indigo-500/30"></div>\
-                <span className="text-2xl font-extrabold tracking-tight text-slate-900">KARTA<span className="text-emerald-500">.</span></span>\
-            </div>\
-        );\
-\
-        const Search = (\{ onLoc \}) => \{\
-            const [q, SQ] = useState(""); const [r, SR] = useState([]);\
-            useEffect(() => \{ const t = setTimeout(async()=>\{ if(q.length > 2) SR(await fetchAddr(q)); else SR([]); \}, 300); return ()=>clearTimeout(t); \}, [q]);\
-            return (\
-                <div className="relative z-[9999] mb-6 group">\
-                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">\
-                        <i data-lucide="search" className="w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>\
-                    </div>\
-                    <input className="w-full py-4 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl text-base font-medium shadow-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"\
-                        placeholder="Entrez une adresse..." value=\{q\} onChange=\{e=>SQ(e.target.value)\} />\
-                    \{r && r.length > 0 && (\
-                        <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden slide-up z-[1000]">\
-                            \{r.map(x => (\
-                                <div key=\{x.properties.id\} onClick=\{()=>\{onLoc(x); SQ(x.properties.label); SR([]);\}\}\
-                                    className="p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0">\
-                                    <div className="font-bold text-slate-800">\{x.properties.name\}</div>\
-                                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">\{x.properties.city\}</div>\
-                                </div>\
-                            ))\}\
-                        </div>\
-                    )\}\
-                </div>\
-            );\
-        \};\
-\
-        // --- ICONS SVG STATIQUES (Pour \'e9viter les bugs de re-render Lucide) ---\
-        const CheckIcon = () => (\
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>\
-        );\
-\
-        const ToggleButton = (\{ label, active, onClick \}) => (\
-            <button onClick=\{onClick\} className=\{`flex-1 p-4 rounded-2xl border-2 transition-all duration-200 flex items-center justify-center gap-3 $\{active ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'\}`\}>\
-                <div className=\{`w-5 h-5 rounded border flex items-center justify-center transition-colors $\{active ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'\}`\}>\
-                    \{active && <CheckIcon />\}\
-                </div>\
-                <span className="font-bold text-sm">\{label\}</span>\
-            </button>\
-        );\
-\
-        // --- APP PRINCIPALE ---\
-        const App = () => \{\
-            const [view, setView] = useState('map');\
-            const [data, setData] = useState([]);\
-            const [live, setLive] = useState(true);\
-            const [sel, setSel] = useState(null);\
-            const [center, setCenter] = useState(DEFAULT_CENTER);\
-            \
-            // \'c9tats Estimation\
-            const [prop, setProp] = useState(\{ \
-                s: 60, t: 'Appartement', e: 'Bon', pieces: 3, dpe: 'D', \
-                ext: false, park: false, // Bool\'e9ens pour les cases \'e0 cocher\
-                addr: '', lat: null, lng: null, city: '' \
-            \});\
-            \
-            const [est, setEst] = useState(null);\
-            const [portalLinks, setPortalLinks] = useState([]);\
-\
-            const map = useRef(null);\
-            const lay = useRef(null);\
-            const pin = useRef(null);\
-\
-            useEffect(() => \{\
-                if(map.current) return;\
-                const m = L.map('map', \{ zoomControl:false, attributionControl:false \}).setView(center, 14);\
-                L.tileLayer('https://\{s\}.basemaps.cartocdn.com/rastertiles/voyager/\{z\}/\{x\}/\{y\}\{r\}.png', \{maxZoom: 20\}).addTo(m);\
-                lay.current = L.layerGroup().addTo(m);\
-                map.current = m;\
-                refresh(center[0], center[1]);\
-                m.on('moveend', () => \{ const c = m.getCenter(); setTimeout(()=>refresh(c.lat,c.lng),600); \});\
-                return ()=>m.remove();\
-            \}, []);\
-\
-            const refresh = async (lat, lng) => \{\
-                const res = await fetchData(lat, lng);\
-                setData(res.data); setLive(res.ok);\
-            \};\
-\
-            const goTo = (f) => \{\
-                const [lng, lat] = f.geometry.coordinates;\
-                map.current.flyTo([lat, lng], 16);\
-                if(pin.current) pin.current.remove();\
-                const el = document.createElement('div');\
-                el.innerHTML = '<div style="width:24px;height:24px;background:#4F46E5;border:4px solid white;border-radius:50%;box-shadow:0 10px 20px rgba(79,70,229,0.4)"></div>';\
-                pin.current = L.marker([lat, lng], \{ icon: L.divIcon(\{className:'', html:el.innerHTML\}) \}).addTo(map.current);\
-                setProp(p=>(\{...p, addr:f.properties.label, city:f.properties.city, lat, lng\}));\
-                refresh(lat, lng);\
-            \};\
-\
-            const calc = () => \{\
-                if(!prop.lat) return alert("Veuillez s\'e9lectionner une adresse d'abord");\
-                \
-                const avg = data.reduce((a,b)=>a+b.pricePerSqm,0)/(data.length||1);\
-                let multiplier = 1.0;\
-\
-                if (prop.e === 'Neuf') multiplier += 0.15;\
-                if (prop.e === 'R\'e9nover') multiplier -= 0.15;\
-                if (['A','B'].includes(prop.dpe)) multiplier += 0.10;\
-                if (['F','G'].includes(prop.dpe)) multiplier -= 0.10;\
-                if (prop.ext) multiplier += 0.05; \
-                if (prop.park) multiplier += 0.05;\
-                if (prop.t === 'Maison') multiplier += 0.05;\
-\
-                let val = avg * prop.s * multiplier;\
-                setEst(\{ v: Math.round(val), min:Math.round(val*0.92), max:Math.round(val*1.08) \});\
-                setPortalLinks(getPortalLinks(prop.city, prop.t, prop.s, prop.pieces));\
-            \};\
-\
-            useEffect(() => \{\
-                if(!lay.current) return;\
-                lay.current.clearLayers();\
-                data.forEach(d => \{\
-                    const isHigh = d.pricePerSqm > 8500;\
-                    const html = `<div class="price-tag $\{isHigh?'premium':''\} $\{sel?.id===d.id?'accent':''\}">\
-                        $\{Math.round(d.price/1000)\}k\
-                    </div>`;\
-                    const m = L.marker([d.lat, d.lng], \{ icon: L.divIcon(\{className:'custom-leaf-icon', html, iconSize:[50, 30]\}) \});\
-                    m.bindPopup(`\
-                        <div style="font-family:'Outfit'; padding:12px;">\
-                            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase; font-weight:700;">$\{d.type\}</div>\
-                            <div style="font-size:20px; font-weight:800; color:#0f172a;">$\{formatEuro(d.price)\}</div>\
-                            <div style="font-size:12px; color:#64748b;">$\{d.surface\}m\'b2 \'95 $\{formatEuro(d.pricePerSqm)\}/m\'b2</div>\
-                        </div>\
-                    `);\
-                    m.on('click', () => \{ setSel(d); map.current.flyTo([d.lat, d.lng], 17); if(view==='est') setView('map'); \});\
-                    m.addTo(lay.current);\
-                \});\
-            \}, [data, sel]);\
-\
-            useEffect(()=>lucide.createIcons(), [view, sel, est, portalLinks, prop]);\
-\
-            return (\
-                <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden">\
-                    \
-                    <div className="sidebar-container absolute md:relative bottom-0 left-0 w-full md:w-[480px] h-[75vh] md:h-full bg-white/95 md:bg-white backdrop-blur-xl shadow-2xl flex flex-col border-r border-slate-200 shrink-0">\
-                        \
-                        <div className="p-6 pb-2 shrink-0">\
-                            <div className="flex justify-between items-start">\
-                                <Logo />\
-                                <div className=\{`px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-2 border $\{live ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'\}`\}>\
-                                    <span className=\{`w-2 h-2 rounded-full $\{live?'bg-emerald-500':'bg-amber-500'\}`\}></span>\
-                                    \{live ? 'LIVE' : 'DEMO'\}\
-                                </div>\
-                            </div>\
-                            <div className="bg-slate-100 p-1 rounded-xl flex mb-4">\
-                                \{[\{id:'map', l:'Explorer'\}, \{id:'est', l:'Estimer'\}].map(t => (\
-                                    <button key=\{t.id\} onClick=\{()=>setView(t.id)\}\
-                                        className=\{`flex-1 py-3 rounded-lg text-sm font-bold transition-all $\{view===t.id ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'\}`\}>\
-                                        \{t.l\}\
-                                    </button>\
-                                ))\}\
-                            </div>\
-                        </div>\
-\
-                        <div className="flex-1 overflow-y-auto px-6 pb-24 scroll-smooth">\
-                            \{view === 'map' && (\
-                                <div className="slide-up">\
-                                    <h2 className="text-xl font-extrabold text-slate-900 mb-4">Transactions<span className="text-indigo-500">.</span></h2>\
-                                    <Search onLoc=\{goTo\} />\
-                                    \{sel ? (\
-                                        <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-2xl relative overflow-hidden mb-6">\
-                                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-[60px] opacity-50"></div>\
-                                            <button onClick=\{()=>setSel(null)\} className="text-xs font-bold text-slate-400 hover:text-white mb-4 flex items-center gap-1"><i data-lucide="arrow-left" width="14"></i> RETOUR</button>\
-                                            <div className="text-sm font-bold text-indigo-400 uppercase mb-1">\{sel.type\}</div>\
-                                            <div className="text-3xl font-extrabold mb-6">\{formatEuro(sel.price)\}</div>\
-                                            <div className="flex gap-4">\
-                                                <div className="bg-white/10 px-3 py-2 rounded-lg text-sm font-bold">\{sel.surface\} m\'b2</div>\
-                                                <div className="bg-white/10 px-3 py-2 rounded-lg text-sm font-bold">\{formatEuro(sel.pricePerSqm)\}/m\'b2</div>\
-                                            </div>\
-                                            <div className="mt-4 text-xs text-slate-500 capitalize">\{sel.address\}</div>\
-                                        </div>\
-                                    ) : (\
-                                        <div className="space-y-3">\
-                                            \{data.map(d => (\
-                                                <div key=\{d.id\} onClick=\{()=>\{setSel(d); map.current.flyTo([d.lat,d.lng],18)\}\}\
-                                                    className="group p-4 bg-white rounded-2xl border border-slate-100 hover:border-indigo-500 hover:shadow-lg transition-all cursor-pointer flex justify-between items-center">\
-                                                    <div>\
-                                                        <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">\{d.type\} \{d.surface\}m\'b2</div>\
-                                                        <div className="text-xs font-semibold text-slate-400 mt-1">\{d.date\}</div>\
-                                                    </div>\
-                                                    <div className="font-extrabold text-slate-900">\{formatEuro(d.price)\}</div>\
-                                                </div>\
-                                            ))\}\
-                                        </div>\
-                                    )\}\
-                                </div>\
-                            )\}\
-\
-                            \{view === 'est' && (\
-                                <div className="slide-up">\
-                                    <h2 className="text-xl font-extrabold text-slate-900 mb-4">Analyse & Concurrence<span className="text-emerald-500">.</span></h2>\
-                                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm mb-6">\
-                                        \
-                                        \{/* 1. Adresse */\}\
-                                        <div className="mb-5">\
-                                            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Adresse du bien</label>\
-                                            <Search onLoc=\{goTo\} />\
-                                            \{prop.addr && <div className="text-xs font-bold text-emerald-600 flex gap-2 mt-2"><i data-lucide="check" width="14"></i> \{prop.city || 'Zone identifi\'e9e'\}</div>\}\
-                                        </div>\
-\
-                                        \{/* 2. Type & Surface */\}\
-                                        <div className="grid grid-cols-2 gap-3 mb-4">\
-                                            <div>\
-                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Type</label>\
-                                                <div className="flex bg-slate-50 p-1 rounded-xl">\
-                                                    \{['Appartement', 'Maison'].map(t => (\
-                                                        <button key=\{t\} onClick=\{()=>setProp(\{...prop, t\})\} \
-                                                            className=\{`flex-1 py-2 rounded-lg text-xs font-bold transition-all $\{prop.t===t?'bg-white shadow text-indigo-600':'text-slate-400 hover:bg-slate-50'\}`\}>\{t === 'Appartement' ? 'Appt' : 'Maison'\}</button>\
-                                                    ))\}\
-                                                </div>\
-                                            </div>\
-                                            <div>\
-                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Surface (m\'b2)</label>\
-                                                <input type="number" value=\{prop.s\} onChange=\{e=>setProp(\{...prop,s:Number(e.target.value)\})\} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-transparent" />\
-                                            </div>\
-                                        </div>\
-\
-                                        \{/* 3. Pi\'e8ces & DPE */\}\
-                                        <div className="grid grid-cols-2 gap-3 mb-4">\
-                                            <div>\
-                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Nb Pi\'e8ces</label>\
-                                                <input type="number" value=\{prop.pieces\} onChange=\{e=>setProp(\{...prop,pieces:Number(e.target.value)\})\} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-transparent" />\
-                                            </div>\
-                                            <div>\
-                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">DPE</label>\
-                                                <select value=\{prop.dpe\} onChange=\{e=>setProp(\{...prop,dpe:e.target.value\})\} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-transparent">\
-                                                    \{['A','B','C','D','E','F','G'].map(l => <option key=\{l\} value=\{l\}>\{l\}</option>)\}\
-                                                </select>\
-                                            </div>\
-                                        </div>\
-\
-                                        \{/* 4. Options (Boutons Toggle Corrig\'e9s avec SVG Inline) */\}\
-                                        <div className="grid grid-cols-2 gap-3 mb-4">\
-                                            <ToggleButton label="Ext\'e9rieur" active=\{prop.ext\} onClick=\{() => setProp(\{...prop, ext: !prop.ext\})\} />\
-                                            <ToggleButton label="Parking" active=\{prop.park\} onClick=\{() => setProp(\{...prop, park: !prop.park\})\} />\
-                                        </div>\
-\
-                                        <div className="mb-6">\
-                                            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">\'c9tat g\'e9n\'e9ral</label>\
-                                            <select value=\{prop.e\} onChange=\{e=>setProp(\{...prop,e:e.target.value\})\} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-transparent">\
-                                                <option value="R\'e9nover">\'c0 r\'e9nover (Travaux n\'e9cessaires)</option>\
-                                                <option value="Bon">Bon \'e9tat / Standard</option>\
-                                                <option value="Neuf">Excellent / Refait \'e0 neuf</option>\
-                                            </select>\
-                                        </div>\
-\
-                                        <button onClick=\{calc\} className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2">\
-                                            <i data-lucide="calculator" width="16"></i> Calculer l'estimation\
-                                        </button>\
-                                    </div>\
-\
-                                    \{est && (\
-                                        <>\
-                                            <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 rounded-3xl text-white shadow-2xl slide-up mb-8">\
-                                                <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider mb-2">Valeur estim\'e9e</div>\
-                                                <div className="text-4xl font-extrabold mb-4">\{formatEuro(est.v)\}</div>\
-                                                <div className="flex justify-between text-sm font-medium border-t border-white/10 pt-4">\
-                                                    <div className="text-indigo-200">Min: <span className="text-white">\{formatEuro(est.min)\}</span></div>\
-                                                    <div className="text-indigo-200">Max: <span className="text-white">\{formatEuro(est.max)\}</span></div>\
-                                                </div>\
-                                            </div>\
-                                            \
-                                            <div className="relative z-50 pb-10">\
-                                                <h3 className="text-sm font-extrabold text-slate-900 mb-4 flex items-center gap-2">\
-                                                    <i data-lucide="external-link" className="text-emerald-500" width="16"></i> Comparer sur le march\'e9\
-                                                </h3>\
-                                                <div className="space-y-3">\
-                                                    \{portalLinks.map(link => (\
-                                                        <a key=\{link.id\} href=\{link.url\} target="_blank" rel="noopener noreferrer"\
-                                                           style=\{\{ pointerEvents: 'auto' \}\} \
-                                                           className=\{`block p-4 rounded-2xl border transition-all hover:scale-[1.02] flex items-center gap-4 $\{link.color\} border-opacity-50 hover:shadow-lg no-underline cursor-pointer`\}>\
-                                                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm shrink-0 overflow-hidden p-1">\
-                                                                <img src=\{link.icon\} className="w-full h-full object-contain" alt=\{link.name\}/>\
-                                                            </div>\
-                                                            <div className="flex-1">\
-                                                                <div className="font-bold text-slate-900">Voir sur \{link.name\}</div>\
-                                                                <div className="text-xs opacity-80 font-medium">Recherche pr\'e9-filtr\'e9e : \{prop.t\} \{prop.pieces\}p</div>\
-                                                            </div>\
-                                                            <i data-lucide="chevron-right" width="16"></i>\
-                                                        </a>\
-                                                    ))\}\
-                                                </div>\
-                                            </div>\
-                                        </>\
-                                    )\}\
-                                </div>\
-                            )\}\
-                        </div>\
-                    </div>\
-                    <div id="map" className="flex-1"></div>\
-                </div>\
-            );\
-        \};\
-\
-        const root = ReactDOM.createRoot(document.getElementById('root'));\
-        root.render(<App />);\
-    </script>\
-</body>\
-</html>}
+    <style>
+        :root { --brand-dark: #0F172A; --brand-primary: #4F46E5; --brand-accent: #10B981; --font-main: 'Outfit', sans-serif; }
+        body { font-family: var(--font-main); background-color: #F8FAFC; color: var(--brand-dark); margin: 0; overflow: hidden; }
+        
+        #map { height: 100%; width: 100%; background: #e2e8f0; z-index: 0; }
+        
+        .sidebar-container { z-index: 5000; position: relative; }
+        .slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+        
+        .leaflet-popup-content-wrapper { border-radius: 16px; border: none; padding: 0; }
+        .leaflet-popup-content { margin: 0; width: 260px !important; }
+        
+        .karta-logo-shape { width: 28px; height: 28px; background: var(--brand-primary); border-radius: 6px; position: relative; overflow: hidden; }
+        .karta-logo-shape::after { content: ''; position: absolute; top: 0; right: 0; width: 14px; height: 14px; background: var(--brand-accent); border-bottom-left-radius: 10px; }
+        
+        .price-tag { background: white; padding: 6px 10px; border-radius: 12px; font-weight: 700; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: transform 0.2s; display: flex; align-items: center; gap: 4px; white-space: nowrap; border: 1px solid rgba(0,0,0,0.05); }
+        .price-tag:hover { transform: scale(1.15); z-index: 500 !important; }
+        .price-tag.premium { background: var(--brand-dark); color: white; border: none; }
+        .price-tag.accent { background: var(--brand-primary); color: white; border: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const DEFAULT_CENTER = [48.8566, 2.3522];
+
+        const formatEuro = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+
+        // --- LOGIQUE LIENS ---
+        const getPortalLinks = (city, type, surface, rooms) => {
+            if (!city) return [];
+            const cleanCity = city.split(' ')[0].toLowerCase().replace(/ /g, '-');
+            const surfaceMin = Math.floor(surface * 0.9);
+            const surfaceMax = Math.ceil(surface * 1.1);
+            
+            return [
+                {
+                    id: 'lbc', name: 'Leboncoin',
+                    icon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Leboncoin_Logo_2016.svg/1200px-Leboncoin_Logo_2016.svg.png',
+                    color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',
+                    url: `https://www.leboncoin.fr/recherche?category=9&text=${cleanCity}&real_estate_type=${type === 'Maison' ? '1' : '2'}&square=${surfaceMin}-${surfaceMax}&rooms=${rooms}-${rooms+1}`
+                },
+                {
+                    id: 'seloger', name: 'SeLoger',
+                    icon: 'https://play-lh.googleusercontent.com/85W-p7L5X-Z9z8qD2c4yF9vR1v4z4zF9z8qD2c4yF9vR1v4z4zF9z8qD2c4yF9=w240-h480-rw',
+                    color: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100',
+                    url: `https://www.seloger.com/list.htm?projects=2&types=${type === 'Maison' ? '2' : '1'}&surface=${surfaceMin}/${surfaceMax}&rooms=${rooms}&places=[{city:${cleanCity}}]`
+                },
+                {
+                    id: 'bienici', name: 'BienIci',
+                    icon: 'https://upload.wikimedia.org/wikipedia/commons/4/42/Logo_Bien%27ici.png',
+                    color: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',
+                    url: `https://www.bienici.com/recherche/achat/${cleanCity}?surface-min=${surfaceMin}&surface-max=${surfaceMax}&rooms-min=${rooms}&type=${type === 'Maison' ? 'maison' : 'appartement'}`
+                }
+            ];
+        };
+
+        // --- DATA FETCHING ---
+        const generateMock = (lat, lng) => Array.from({length:40}, (_,i) => ({
+            id: `mock-${i}`, lat: lat + (Math.random()-.5)*0.015, lng: lng + (Math.random()-.5)*0.02,
+            type: Math.random()>.7 ? 'Maison' : 'Appartement',
+            surface: Math.floor(20+Math.random()*100),
+            price: Math.floor(100000+Math.random()*500000),
+            date: '2024', isMock: true
+        })).map(p => ({...p, pricePerSqm: Math.floor(p.price/p.surface), address:'Quartier détecté'}));
+
+        const fetchData = async (lat, lng) => {
+            try {
+                const c = new AbortController(); setTimeout(()=>c.abort(), 2500);
+                const r = await fetch(`https://api.cquest.org/dvf?lat=${lat}&lon=${lng}&dist=1000`, {signal:c.signal});
+                const j = await r.json();
+                if(!j.features?.length) throw new Error("Vide");
+                return { ok:true, data: j.features.map(f=>({
+                    id:f.properties.id_mutation, lat:f.properties.lat, lng:f.properties.lon,
+                    type:f.properties.type_local, surface:f.properties.surface_reelle_bati,
+                    price:f.properties.valeur_fonciere, pricePerSqm:Math.round(f.properties.valeur_fonciere/f.properties.surface_reelle_bati),
+                    date: new Date(f.properties.date_mutation).toLocaleDateString('fr-FR', {month:'short', year:'2-digit'}),
+                    address: `${f.properties.numero_voie||''} ${f.properties.voie||''}`.toLowerCase(), isMock:false
+                })).filter(p=>p.surface>9 && p.price>50000).slice(0,80)};
+            } catch(e) { return { ok:false, data: generateMock(lat, lng) }; }
+        };
+
+        const fetchAddr = async (q) => {
+            if(q.length < 3) return [];
+            try {
+                const res = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${q}&limit=4`);
+                const json = await res.json();
+                return json.features || [];
+            } catch(e) { return []; }
+        };
+
+        // --- UI COMPONENTS ---
+        const Logo = () => (
+            <div className="flex items-center gap-3 select-none cursor-pointer mb-6">
+                <div className="karta-logo-shape shadow-lg shadow-indigo-500/30"></div>
+                <span className="text-2xl font-extrabold tracking-tight text-slate-900">KARTA<span className="text-emerald-500">.</span></span>
+            </div>
+        );
+
+        const Search = ({ onLoc }) => {
+            const [q, SQ] = useState(""); const [r, SR] = useState([]);
+            useEffect(() => { const t = setTimeout(async()=>{ if(q.length > 2) SR(await fetchAddr(q)); else SR([]); }, 300); return ()=>clearTimeout(t); }, [q]);
+            return (
+                <div className="relative z-[9999] mb-6 group">
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                        <i data-lucide="search" className="w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                    </div>
+                    <input className="w-full py-4 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl text-base font-medium shadow-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        placeholder="Entrez une adresse..." value={q} onChange={e=>SQ(e.target.value)} />
+                    {r && r.length > 0 && (
+                        <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden slide-up z-[1000]">
+                            {r.map(x => (
+                                <div key={x.properties.id} onClick={()=>{onLoc(x); SQ(x.properties.label); SR([]);}}
+                                    className="p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0">
+                                    <div className="font-bold text-slate-800">{x.properties.name}</div>
+                                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">{x.properties.city}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- ICONS SVG STATIQUES (Pour éviter les bugs de re-render Lucide) ---
+        const CheckIcon = () => (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        );
+
+        const ToggleButton = ({ label, active, onClick }) => (
+            <button onClick={onClick} className={`flex-1 p-4 rounded-2xl border-2 transition-all duration-200 flex items-center justify-center gap-3 ${active ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'}`}>
+                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${active ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}`}>
+                    {active && <CheckIcon />}
+                </div>
+                <span className="font-bold text-sm">{label}</span>
+            </button>
+        );
+
+        // --- APP PRINCIPALE ---
+        const App = () => {
+            const [view, setView] = useState('map');
+            const [data, setData] = useState([]);
+            const [live, setLive] = useState(true);
+            const [sel, setSel] = useState(null);
+            const [center, setCenter] = useState(DEFAULT_CENTER);
+            
+            // États Estimation
+            const [prop, setProp] = useState({ 
+                s: 60, t: 'Appartement', e: 'Bon', pieces: 3, dpe: 'D', 
+                ext: false, park: false, // Booléens pour les cases à cocher
+                addr: '', lat: null, lng: null, city: '' 
+            });
+            
+            const [est, setEst] = useState(null);
+            const [portalLinks, setPortalLinks] = useState([]);
+
+            const map = useRef(null);
+            const lay = useRef(null);
+            const pin = useRef(null);
+
+            useEffect(() => {
+                if(map.current) return;
+                const m = L.map('map', { zoomControl:false, attributionControl:false }).setView(center, 14);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {maxZoom: 20}).addTo(m);
+                lay.current = L.layerGroup().addTo(m);
+                map.current = m;
+                refresh(center[0], center[1]);
+                m.on('moveend', () => { const c = m.getCenter(); setTimeout(()=>refresh(c.lat,c.lng),600); });
+                return ()=>m.remove();
+            }, []);
+
+            const refresh = async (lat, lng) => {
+                const res = await fetchData(lat, lng);
+                setData(res.data); setLive(res.ok);
+            };
+
+            const goTo = (f) => {
+                const [lng, lat] = f.geometry.coordinates;
+                map.current.flyTo([lat, lng], 16);
+                if(pin.current) pin.current.remove();
+                const el = document.createElement('div');
+                el.innerHTML = '<div style="width:24px;height:24px;background:#4F46E5;border:4px solid white;border-radius:50%;box-shadow:0 10px 20px rgba(79,70,229,0.4)"></div>';
+                pin.current = L.marker([lat, lng], { icon: L.divIcon({className:'', html:el.innerHTML}) }).addTo(map.current);
+                setProp(p=>({...p, addr:f.properties.label, city:f.properties.city, lat, lng}));
+                refresh(lat, lng);
+            };
+
+            const calc = () => {
+                if(!prop.lat) return alert("Veuillez sélectionner une adresse d'abord");
+                
+                const avg = data.reduce((a,b)=>a+b.pricePerSqm,0)/(data.length||1);
+                let multiplier = 1.0;
+
+                if (prop.e === 'Neuf') multiplier += 0.15;
+                if (prop.e === 'Rénover') multiplier -= 0.15;
+                if (['A','B'].includes(prop.dpe)) multiplier += 0.10;
+                if (['F','G'].includes(prop.dpe)) multiplier -= 0.10;
+                if (prop.ext) multiplier += 0.05; 
+                if (prop.park) multiplier += 0.05;
+                if (prop.t === 'Maison') multiplier += 0.05;
+
+                let val = avg * prop.s * multiplier;
+                setEst({ v: Math.round(val), min:Math.round(val*0.92), max:Math.round(val*1.08) });
+                setPortalLinks(getPortalLinks(prop.city, prop.t, prop.s, prop.pieces));
+            };
+
+            useEffect(() => {
+                if(!lay.current) return;
+                lay.current.clearLayers();
+                data.forEach(d => {
+                    const isHigh = d.pricePerSqm > 8500;
+                    const html = `<div class="price-tag ${isHigh?'premium':''} ${sel?.id===d.id?'accent':''}">
+                        ${Math.round(d.price/1000)}k
+                    </div>`;
+                    const m = L.marker([d.lat, d.lng], { icon: L.divIcon({className:'custom-leaf-icon', html, iconSize:[50, 30]}) });
+                    m.bindPopup(`
+                        <div style="font-family:'Outfit'; padding:12px;">
+                            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase; font-weight:700;">${d.type}</div>
+                            <div style="font-size:20px; font-weight:800; color:#0f172a;">${formatEuro(d.price)}</div>
+                            <div style="font-size:12px; color:#64748b;">${d.surface}m² • ${formatEuro(d.pricePerSqm)}/m²</div>
+                        </div>
+                    `);
+                    m.on('click', () => { setSel(d); map.current.flyTo([d.lat, d.lng], 17); if(view==='est') setView('map'); });
+                    m.addTo(lay.current);
+                });
+            }, [data, sel]);
+
+            useEffect(()=>lucide.createIcons(), [view, sel, est, portalLinks, prop]);
+
+            return (
+                <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
+                    
+                    <div className="sidebar-container absolute md:relative bottom-0 left-0 w-full md:w-[480px] h-[75vh] md:h-full bg-white/95 md:bg-white backdrop-blur-xl shadow-2xl flex flex-col border-r border-slate-200 shrink-0">
+                        
+                        <div className="p-6 pb-2 shrink-0">
+                            <div className="flex justify-between items-start">
+                                <Logo />
+                                <div className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-2 border ${live ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                    <span className={`w-2 h-2 rounded-full ${live?'bg-emerald-500':'bg-amber-500'}`}></span>
+                                    {live ? 'LIVE' : 'DEMO'}
+                                </div>
+                            </div>
+                            <div className="bg-slate-100 p-1 rounded-xl flex mb-4">
+                                {[{id:'map', l:'Explorer'}, {id:'est', l:'Estimer'}].map(t => (
+                                    <button key={t.id} onClick={()=>setView(t.id)}
+                                        className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${view===t.id ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>
+                                        {t.l}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-6 pb-24 scroll-smooth">
+                            {view === 'map' && (
+                                <div className="slide-up">
+                                    <h2 className="text-xl font-extrabold text-slate-900 mb-4">Transactions<span className="text-indigo-500">.</span></h2>
+                                    <Search onLoc={goTo} />
+                                    {sel ? (
+                                        <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-2xl relative overflow-hidden mb-6">
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-[60px] opacity-50"></div>
+                                            <button onClick={()=>setSel(null)} className="text-xs font-bold text-slate-400 hover:text-white mb-4 flex items-center gap-1"><i data-lucide="arrow-left" width="14"></i> RETOUR</button>
+                                            <div className="text-sm font-bold text-indigo-400 uppercase mb-1">{sel.type}</div>
+                                            <div className="text-3xl font-extrabold mb-6">{formatEuro(sel.price)}</div>
+                                            <div className="flex gap-4">
+                                                <div className="bg-white/10 px-3 py-2 rounded-lg text-sm font-bold">{sel.surface} m²</div>
+                                                <div className="bg-white/10 px-3 py-2 rounded-lg text-sm font-bold">{formatEuro(sel.pricePerSqm)}/m²</div>
+                                            </div>
+                                            <div className="mt-4 text-xs text-slate-500 capitalize">{sel.address}</div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {data.map(d => (
+                                                <div key={d.id} onClick={()=>{setSel(d); map.current.flyTo([d.lat,d.lng],18)}}
+                                                    className="group p-4 bg-white rounded-2xl border border-slate-100 hover:border-indigo-500 hover:shadow-lg transition-all cursor-pointer flex justify-between items-center">
+                                                    <div>
+                                                        <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{d.type} {d.surface}m²</div>
+                                                        <div className="text-xs font-semibold text-slate-400 mt-1">{d.date}</div>
+                                                    </div>
+                                                    <div className="font-extrabold text-slate-900">{formatEuro(d.price)}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {view === 'est' && (
+                                <div className="slide-up">
+                                    <h2 className="text-xl font-extrabold text-slate-900 mb-4">Analyse & Concurrence<span className="text-emerald-500">.</span></h2>
+                                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm mb-6">
+                                        
+                                        {/* 1. Adresse */}
+                                        <div className="mb-5">
+                                            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Adresse du bien</label>
+                                            <Search onLoc={goTo} />
+                                            {prop.addr && <div className="text-xs font-bold text-emerald-600 flex gap-2 mt-2"><i data-lucide="check" width="14"></i> {prop.city || 'Zone identifiée'}</div>}
+                                        </div>
+
+                                        {/* 2. Type & Surface */}
+                                        <div className="grid grid-cols-2 gap-3 mb-4">
+                                            <div>
+                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Type</label>
+                                                <div className="flex bg-slate-50 p-1 rounded-xl">
+                                                    {['Appartement', 'Maison'].map(t => (
+                                                        <button key={t} onClick={()=>setProp({...prop, t})} 
+                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${prop.t===t?'bg-white shadow text-indigo-600':'text-slate-400 hover:bg-slate-50'}`}>{t === 'Appartement' ? 'Appt' : 'Maison'}</button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Surface (m²)</label>
+                                                <input type="number" value={prop.s} onChange={e=>setProp({...prop,s:Number(e.target.value)})} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-transparent" />
+                                            </div>
+                                        </div>
+
+                                        {/* 3. Pièces & DPE */}
+                                        <div className="grid grid-cols-2 gap-3 mb-4">
+                                            <div>
+                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">Nb Pièces</label>
+                                                <input type="number" value={prop.pieces} onChange={e=>setProp({...prop,pieces:Number(e.target.value)})} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-transparent" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">DPE</label>
+                                                <select value={prop.dpe} onChange={e=>setProp({...prop,dpe:e.target.value})} className="w-full p-2.5 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-transparent">
+                                                    {['A','B','C','D','E','F','G'].map(l => <option key={l} value={l}>{l}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* 4. Options (Boutons Toggle Corrigés avec SVG Inline) */}
+                                        <div className="grid grid-cols-2 gap-3 mb-4">
+                                            <ToggleButton label="Extérieur" active={prop.ext} onClick={() => setProp({...prop, ext: !prop.ext})} />
+                                            <ToggleButton label="Parking" active={prop.park} onClick={() => setProp({...prop, park: !prop.park})} />
+                                        </div>
+
+                                        <div className="mb-6">
+                                            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2 block">État général</label>
+                                            <select value={prop.e} onChange={e=>setProp({...prop,e:e.target.value})} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-transparent">
+                                                <option value="Rénover">À rénover (Travaux nécessaires)</option>
+                                                <option value="Bon">Bon état / Standard</option>
+                                                <option value="Neuf">Excellent / Refait à neuf</option>
+                                            </select>
+                                        </div>
+
+                                        <button onClick={calc} className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2">
+                                            <i data-lucide="calculator" width="16"></i> Calculer l'estimation
+                                        </button>
+                                    </div>
+
+                                    {est && (
+                                        <>
+                                            <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 rounded-3xl text-white shadow-2xl slide-up mb-8">
+                                                <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider mb-2">Valeur estimée</div>
+                                                <div className="text-4xl font-extrabold mb-4">{formatEuro(est.v)}</div>
+                                                <div className="flex justify-between text-sm font-medium border-t border-white/10 pt-4">
+                                                    <div className="text-indigo-200">Min: <span className="text-white">{formatEuro(est.min)}</span></div>
+                                                    <div className="text-indigo-200">Max: <span className="text-white">{formatEuro(est.max)}</span></div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="relative z-50 pb-10">
+                                                <h3 className="text-sm font-extrabold text-slate-900 mb-4 flex items-center gap-2">
+                                                    <i data-lucide="external-link" className="text-emerald-500" width="16"></i> Comparer sur le marché
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {portalLinks.map(link => (
+                                                        <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
+                                                           style={{ pointerEvents: 'auto' }} 
+                                                           className={`block p-4 rounded-2xl border transition-all hover:scale-[1.02] flex items-center gap-4 ${link.color} border-opacity-50 hover:shadow-lg no-underline cursor-pointer`}>
+                                                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm shrink-0 overflow-hidden p-1">
+                                                                <img src={link.icon} className="w-full h-full object-contain" alt={link.name}/>
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="font-bold text-slate-900">Voir sur {link.name}</div>
+                                                                <div className="text-xs opacity-80 font-medium">Recherche pré-filtrée : {prop.t} {prop.pieces}p</div>
+                                                            </div>
+                                                            <i data-lucide="chevron-right" width="16"></i>
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div id="map" className="flex-1"></div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
